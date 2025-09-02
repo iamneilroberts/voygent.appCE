@@ -139,6 +139,13 @@ EOF
 
 # Process the template
 echo "🏗️ Generating LibreChat configuration..."
+
+# Remove any existing directory with the same name (safety check)
+if [ -d "config/librechat.yaml" ]; then
+    echo "⚠️  Removing existing directory: config/librechat.yaml"
+    rm -rf "config/librechat.yaml"
+fi
+
 node /tmp/process_template.js config/librechat-template.yaml config/librechat.yaml
 
 # Clean up temporary file
