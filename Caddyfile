@@ -1,0 +1,56 @@
+# Caddyfile for VoygentCE
+# Development configuration - adjust for production
+
+{
+    # Global options
+    auto_https off  # Disable for local development
+    log {
+        level INFO
+    }
+}
+
+# Main domain (adjust for production)
+localhost:80, 127.0.0.1:80 {
+    # LibreChat UI (main interface)
+    handle /api/* {
+        reverse_proxy librechat:3080
+    }
+    
+    handle /* {
+        reverse_proxy librechat:3080
+    }
+    
+    # Orchestrator API
+    handle /orchestrator/* {
+        uri strip_prefix /orchestrator
+        reverse_proxy orchestrator:3000
+    }
+    
+    # Direct orchestrator API access
+    handle /api/v1/* {
+        reverse_proxy orchestrator:3000
+    }
+    
+    # Health checks
+    handle /health {
+        reverse_proxy orchestrator:3000
+    }
+    
+    # Logging
+    log {
+        output file /var/log/caddy/access.log {
+            roll_size 100mb
+            roll_keep 3
+        }
+        format json
+    }
+}
+
+# Development direct access ports (remove for production)
+:3080 {
+    reverse_proxy librechat:3080
+}
+
+:3000 {
+    reverse_proxy orchestrator:3000
+}
