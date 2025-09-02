@@ -37,6 +37,13 @@ if [ "$NODE_VERSION" -lt 18 ]; then
     exit 1
 fi
 
+# Check if pnpm is installed (optional but recommended)
+if command -v pnpm &> /dev/null; then
+    echo "✅ pnpm is installed: $(pnpm --version)"
+else
+    echo "ℹ️  pnpm not found (will be installed automatically if needed)"
+fi
+
 echo "✅ Prerequisites check passed"
 
 # Create environment file if it doesn't exist
@@ -156,8 +163,30 @@ echo "🌐 Installing mcp-chrome for browser automation..."
 if [ -d "mcp-chrome" ]; then
     echo "📂 Installing mcp-chrome dependencies..."
     cd mcp-chrome
-    npm install
-    npm run build
+    
+    # Check if pnpm is installed (required for mcp-chrome)
+    if command -v pnpm &> /dev/null; then
+        echo "✅ pnpm found, installing dependencies..."
+        pnpm install
+        pnpm run build
+    elif command -v npm &> /dev/null; then
+        echo "⚠️  pnpm not found, installing it first..."
+        npm install -g pnpm
+        if command -v pnpm &> /dev/null; then
+            echo "✅ pnpm installed successfully"
+            pnpm install
+            pnpm run build
+        else
+            echo "❌ Failed to install pnpm. Please install manually:"
+            echo "   Run: npm install -g pnpm"
+            echo "   Then run this setup script again."
+            exit 1
+        fi
+    else
+        echo "❌ npm not found. Cannot install pnpm."
+        exit 1
+    fi
+    
     cd ..
     echo "✅ mcp-chrome installed locally"
 else

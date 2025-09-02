@@ -52,7 +52,9 @@ VoygentCE supports flexible MCP (Model Context Protocol) server configuration:
 
 ## Quick Start (5 Minutes)
 
-**Prerequisites**: Docker, Docker Compose, Node.js 18+
+**Prerequisites**: Docker, Docker Compose, Node.js 18+, pnpm
+
+> **Windows Users**: See the complete [Windows Installation Guide](docs/WINDOWS_INSTALLATION.md) for detailed setup instructions including Chrome extension installation.
 
 ```bash
 # 1) Clone the repository
