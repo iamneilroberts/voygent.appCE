@@ -6,16 +6,19 @@ set -e
 
 echo "🔧 Configuring LibreChat based on MCP mode..."
 
-# Load environment variables
+# Load environment variables for bash script display (best effort)
 if [ -f .env ]; then
-    export $(grep -v '^#' .env | xargs)
+    # Try to load for display purposes (works on Linux/Mac, may fail on Windows)
+    set +e  # Don't exit on error
+    eval $(grep -v '^#' .env | grep -v '^$' | grep '=' | sed 's/^/export /' 2>/dev/null || true)
+    set -e  # Re-enable exit on error
 fi
 
-# Set defaults if not specified
+# Set defaults if not specified (for bash script display)
 MCP_MODE=${MCP_MODE:-local}
 MCP_DATABASE_MODE=${MCP_DATABASE_MODE:-local}
 MCP_INSTRUCTIONS_MODE=${MCP_INSTRUCTIONS_MODE:-local}
-MCP_CHROME_PATH=${MCP_CHROME_PATH:-./mcp-chrome/dist/index.js}
+MCP_CHROME_PATH=${MCP_CHROME_PATH:-./mcp-chrome/app/native-server/dist/index.js}
 
 echo "📋 MCP Configuration:"
 echo "   Mode: $MCP_MODE"
@@ -58,17 +61,41 @@ const templatePath = process.argv[2];
 const outputPath = process.argv[3];
 const template = fs.readFileSync(templatePath, 'utf8');
 
-// Get environment variables
-const env = process.env;
+// Load environment variables from .env file (cross-platform)
+const env = { ...process.env };
+try {
+  if (fs.existsSync('.env')) {
+    const envContent = fs.readFileSync('.env', 'utf8');
+    const lines = envContent.split('\n');
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
+        const [key, ...valueParts] = trimmed.split('=');
+        const value = valueParts.join('=').trim();
+        env[key.trim()] = value;
+      }
+    }
+  }
+} catch (error) {
+  console.warn('Warning: Could not read .env file:', error.message);
+}
 const databaseLocal = env.MCP_DATABASE_MODE === 'local';
 const databaseRemote = env.MCP_DATABASE_MODE === 'remote';
 const instructionsRemote = env.MCP_INSTRUCTIONS_MODE === 'remote';
+const chromePath = env.MCP_CHROME_PATH || './mcp-chrome/app/native-server/dist/index.js';
+let chromeExists = false;
+try {
+  if (chromePath) {
+    chromeExists = require('fs').existsSync(chromePath);
+  }
+} catch (_) {}
 
 console.log('Processing template with:', {
     databaseLocal,
     databaseRemote,
     instructionsRemote,
-    chromePath: env.MCP_CHROME_PATH
+    chromePath,
+    chromeExists
 });
 
 // Simple template processor
@@ -91,6 +118,13 @@ if (instructionsRemote) {
     result = result.replace(/\{\{#if_instructions_remote\}\}([\s\S]*?)\{\{\/if_instructions_remote\}\}/g, '$1');
 } else {
     result = result.replace(/\{\{#if_instructions_remote\}\}[\s\S]*?\{\{\/if_instructions_remote\}\}/g, '');
+}
+
+// Handle chrome existence conditional
+if (chromeExists) {
+    result = result.replace(/\{\{#if_chrome_exists\}\}([\s\S]*?)\{\{\/if_chrome_exists\}\}/g, '$1');
+} else {
+    result = result.replace(/\{\{#if_chrome_exists\}\}[\s\S]*?\{\{\/if_chrome_exists\}\}/g, '');
 }
 
 // Process environment variable substitutions

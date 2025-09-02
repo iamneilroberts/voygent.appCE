@@ -68,8 +68,10 @@ cp .env.example .env
 # 3) Run automated setup
 ./scripts/setup.sh
 
-# 4) Access the system
-open http://localhost:3080  # LibreChat UI
+# 4) Launch VoygentCE
+./voygent start
+
+# Access the system at http://localhost:3080
 ```
 
 **That's it!** Your VoygentCE system is now running with:
@@ -78,6 +80,39 @@ open http://localhost:3080  # LibreChat UI
 - MongoDB, MeiliSearch, and all configured services
 
 > The setup script will prompt you to choose between **Local**, **Remote**, or **Hybrid** MCP modes. See [MCP Configuration Guide](docs/MCP_CONFIGURATION.md) for details.
+
+## VoygentCE Launcher Commands
+
+After setup, use the simple `voygent` command to manage your installation:
+
+```bash
+# Start VoygentCE (default command)
+./voygent
+./voygent start
+
+# Stop services
+./voygent stop
+
+# Restart services
+./voygent restart
+
+# Check service status
+./voygent status
+
+# View logs
+./voygent logs
+
+# Check service health
+./voygent health
+
+# Update services
+./voygent update
+
+# Clean up (removes data!)
+./voygent clean
+```
+
+**Windows users**: Use `voygent.bat` instead of `./voygent`
 
 **Services**
 
