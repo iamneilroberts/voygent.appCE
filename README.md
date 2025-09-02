@@ -79,6 +79,13 @@ open http://localhost:3080  # LibreChat UI
 
 > The setup script will prompt you to choose between **Local**, **Remote**, or **Hybrid** MCP modes. See [MCP Configuration Guide](docs/MCP_CONFIGURATION.md) for details.
 
+## Getting Started for Contributors
+
+- Read the contributor guide: see [AGENTS.md](AGENTS.md) for structure, commands, and conventions.
+- Bring the stack up locally: `./scripts/setup.sh` then `./scripts/start-services.sh`.
+- Orchestrator dev server: `cd orchestrator && npm install && npm run dev`.
+- Run tests: `cd orchestrator && npm test`.
+
 **Services**
 
 * `proxy` – Caddy reverse proxy (TLS optional in local dev)

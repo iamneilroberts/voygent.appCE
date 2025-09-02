@@ -63,12 +63,20 @@ const env = process.env;
 const databaseLocal = env.MCP_DATABASE_MODE === 'local';
 const databaseRemote = env.MCP_DATABASE_MODE === 'remote';
 const instructionsRemote = env.MCP_INSTRUCTIONS_MODE === 'remote';
+const chromePath = env.MCP_CHROME_PATH || '';
+let chromeExists = false;
+try {
+  if (chromePath) {
+    chromeExists = require('fs').existsSync(chromePath);
+  }
+} catch (_) {}
 
 console.log('Processing template with:', {
     databaseLocal,
     databaseRemote,
     instructionsRemote,
-    chromePath: env.MCP_CHROME_PATH
+    chromePath,
+    chromeExists
 });
 
 // Simple template processor
@@ -93,6 +101,13 @@ if (instructionsRemote) {
     result = result.replace(/\{\{#if_instructions_remote\}\}[\s\S]*?\{\{\/if_instructions_remote\}\}/g, '');
 }
 
+// Handle chrome existence conditional
+if (chromeExists) {
+    result = result.replace(/\{\{#if_chrome_exists\}\}([\s\S]*?)\{\{\/if_chrome_exists\}\}/g, '$1');
+} else {
+    result = result.replace(/\{\{#if_chrome_exists\}\}[\s\S]*?\{\{\/if_chrome_exists\}\}/g, '');
+}
+
 // Process environment variable substitutions
 result = result.replace(/\$\{([^}]+)\}/g, (match, varName) => {
     return env[varName] || match;
@@ -110,11 +125,15 @@ node /tmp/process_template.js config/librechat-template.yaml config/librechat.ya
 # Clean up temporary file
 rm -f /tmp/process_template.js
 
-# Validate Chrome MCP path
-if [ ! -f "$MCP_CHROME_PATH" ]; then
-    echo "⚠️  Chrome MCP path not found: $MCP_CHROME_PATH"
-    echo "   Make sure mcp-chrome is installed and built"
-    echo "   Run: cd mcp-chrome && npm install && npm run build"
+# Validate Chrome MCP path (optional)
+if [ -n "$MCP_CHROME_PATH" ]; then
+  if [ -f "$MCP_CHROME_PATH" ]; then
+    echo "✅ Local chrome MCP runner found at: $MCP_CHROME_PATH"
+  else
+    echo "ℹ️  Skipping local chrome MCP (path not found): $MCP_CHROME_PATH"
+  fi
+else
+  echo "ℹ️  MCP_CHROME_PATH not set; chrome MCP will be omitted from config"
 fi
 
 # Test remote connectivity if using remote mode
