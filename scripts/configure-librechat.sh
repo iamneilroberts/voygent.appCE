@@ -82,7 +82,12 @@ try {
 const databaseLocal = env.MCP_DATABASE_MODE === 'local';
 const databaseRemote = env.MCP_DATABASE_MODE === 'remote';
 const instructionsRemote = env.MCP_INSTRUCTIONS_MODE === 'remote';
-const chromePath = env.MCP_CHROME_PATH || './mcp-chrome/app/native-server/dist/index.js';
+
+// We may need a different path inside the container than on the host
+const chromeHostPath = env.MCP_CHROME_PATH || './mcp-chrome/app/native-server/dist/index.js';
+const chromeContainerPath = env.MCP_CHROME_CONTAINER_PATH || chromeHostPath;
+// Use host path to decide whether to include the chrome block
+const chromePath = chromeHostPath;
 let chromeExists = false;
 try {
   if (chromePath) {
@@ -95,6 +100,7 @@ console.log('Processing template with:', {
     databaseRemote,
     instructionsRemote,
     chromePath,
+    chromeContainerPath,
     chromeExists
 });
 
@@ -127,9 +133,12 @@ if (chromeExists) {
     result = result.replace(/\{\{#if_chrome_exists\}\}[\s\S]*?\{\{\/if_chrome_exists\}\}/g, '');
 }
 
+// Prepare environment for substitution, overriding MCP_CHROME_PATH
+const envForSubst = { ...env, MCP_CHROME_PATH: chromeContainerPath };
+
 // Process environment variable substitutions
 result = result.replace(/\$\{([^}]+)\}/g, (match, varName) => {
-    return env[varName] || match;
+    return envForSubst[varName] || match;
 });
 
 // Write output

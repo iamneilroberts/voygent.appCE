@@ -4,6 +4,15 @@
 
 set -e
 
+# Choose docker compose command
+compose() {
+    if docker compose version >/dev/null 2>&1; then
+        docker compose "$@"
+    else
+        docker-compose "$@"
+    fi
+}
+
 echo "🚀 Starting VoygentCE Services..."
 
 # Load environment variables
@@ -52,9 +61,9 @@ echo "🐳 Docker Compose profiles: $COMPOSE_PROFILES"
 
 # Start services with appropriate profiles
 if [ -n "$COMPOSE_PROFILES" ]; then
-    COMPOSE_PROFILES="$COMPOSE_PROFILES" docker-compose up -d --build
+    COMPOSE_PROFILES="$COMPOSE_PROFILES" compose up -d --build
 else
-    docker-compose up -d --build
+    compose up -d --build
 fi
 
 # Wait for services to be ready
@@ -115,8 +124,8 @@ echo "   • Trip/hotel data: $MCP_DATABASE_MODE mode"
 echo "   • Workflow instructions: $MCP_INSTRUCTIONS_MODE mode"
 echo ""
 echo "🔧 Management Commands:"
-echo "   • View logs: docker-compose logs -f"
-echo "   • Stop services: docker-compose down"
-echo "   • Restart: docker-compose restart"
+echo "   • View logs: docker compose logs -f"
+echo "   • Stop services: docker compose down"
+echo "   • Restart: docker compose restart"
 echo ""
 echo "Ready for travel planning! 🧳✈️"

@@ -4,6 +4,15 @@
 
 set -e
 
+# Choose docker compose command
+compose() {
+    if docker compose version >/dev/null 2>&1; then
+        docker compose "$@"
+    else
+        docker-compose "$@"
+    fi
+}
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
@@ -58,10 +67,67 @@ show_usage() {
 
 # Check if Docker is running
 check_docker() {
-    if ! docker info >/dev/null 2>&1; then
-        print_error "Docker is not running. Please start Docker first."
-        exit 1
+    if docker info >/dev/null 2>&1; then
+        return 0
     fi
+
+    print_warning "Docker is not running. Attempting to start it..."
+
+    # Detect Desktop context hint
+    DESKTOP_HINT=false
+    if docker context show >/dev/null 2>&1; then
+        if docker context show 2>/dev/null | grep -qi "desktop"; then
+            DESKTOP_HINT=true
+        fi
+    fi
+    if env | grep -q "DOCKER_HOST=.*desktop/docker.sock"; then
+        DESKTOP_HINT=true
+    fi
+
+    # Try to start Docker Engine (system service)
+    if command -v systemctl >/dev/null 2>&1; then
+        if ! systemctl is-active --quiet docker 2>/dev/null; then
+            if sudo -n true 2>/dev/null; then
+                sudo systemctl start docker || true
+            else
+                systemctl start docker 2>/dev/null || sudo systemctl start docker || true
+            fi
+        fi
+        # Try Docker Desktop user service if hinted
+        if $DESKTOP_HINT; then
+            systemctl --user start docker-desktop 2>/dev/null || true
+        fi
+    elif command -v service >/dev/null 2>&1; then
+        service docker start 2>/dev/null || sudo service docker start 2>/dev/null || true
+    fi
+
+    # Wait up to 60s for Docker to become ready
+    for i in $(seq 1 60); do
+        if docker info >/dev/null 2>&1; then
+            print_status "Docker is running."
+            return 0
+        fi
+        sleep 1
+    done
+
+    # Fallback: switch to system engine context if Desktop is hung
+    if $DESKTOP_HINT; then
+        if docker context ls >/dev/null 2>&1 && docker context ls | grep -q " default "; then
+            print_warning "Docker Desktop seems stuck; trying system engine context..."
+            docker context use default >/dev/null 2>&1 || true
+            if docker info >/dev/null 2>&1; then
+                print_status "Switched to system Docker engine."
+                return 0
+            fi
+        fi
+    fi
+
+    if $DESKTOP_HINT; then
+        print_error "Docker Desktop appears to be the active context but is not running. Please launch Docker Desktop and retry."
+    else
+        print_error "Could not start Docker automatically. Start it manually (e.g., 'sudo systemctl start docker') and rerun."
+    fi
+    exit 1
 }
 
 # Check service health
@@ -69,7 +135,7 @@ check_health() {
     print_info "Checking VoygentCE service health..."
     
     # Check if containers are running
-    if ! docker-compose ps | grep -q "Up"; then
+    if ! compose ps | grep -q "Up"; then
         print_warning "Services are not running. Use '$0 start' to start them."
         return 1
     fi
@@ -82,7 +148,7 @@ check_health() {
     fi
     
     # Check MongoDB
-    if docker-compose exec -T mongodb mongosh --eval "db.runCommand('ping')" >/dev/null 2>&1; then
+    if compose exec -T mongodb mongosh --eval "db.runCommand('ping')" >/dev/null 2>&1; then
         print_status "MongoDB is healthy"
     else
         print_warning "MongoDB may not be ready"
@@ -113,7 +179,7 @@ start_services() {
     if [ -f scripts/start-services.sh ]; then
         ./scripts/start-services.sh
     else
-        docker-compose up -d
+        compose up -d
         print_info "Waiting for services to start..."
         sleep 10
     fi
@@ -136,14 +202,14 @@ start_services() {
 # Stop services
 stop_services() {
     print_info "Stopping VoygentCE services..."
-    docker-compose down
+    compose down
     print_status "VoygentCE services stopped"
 }
 
 # Restart services
 restart_services() {
     print_info "Restarting VoygentCE services..."
-    docker-compose restart
+    compose restart
     print_status "VoygentCE services restarted"
     
     print_info "Waiting for services to be ready..."
@@ -155,7 +221,7 @@ restart_services() {
 show_status() {
     print_info "VoygentCE service status:"
     echo ""
-    docker-compose ps
+    compose ps
     echo ""
     
     # Show network info
@@ -173,10 +239,10 @@ show_logs() {
     local service="$1"
     if [ -n "$service" ]; then
         print_info "Showing logs for $service..."
-        docker-compose logs -f "$service"
+        compose logs -f "$service"
     else
         print_info "Showing logs for all services (Ctrl+C to exit)..."
-        docker-compose logs -f
+        compose logs -f
     fi
 }
 
@@ -191,10 +257,10 @@ update_services() {
     print_info "Updating VoygentCE services..."
     
     # Pull latest images
-    docker-compose pull
+    compose pull
     
     # Rebuild if needed
-    docker-compose build
+    compose build
     
     # Restart services
     restart_services

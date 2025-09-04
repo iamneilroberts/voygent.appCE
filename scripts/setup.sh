@@ -196,7 +196,11 @@ fi
 
 # Build and start services
 echo "🐳 Building and starting Docker services..."
-docker-compose down -v 2>/dev/null || true
+if docker compose version >/dev/null 2>&1; then
+  docker compose down -v 2>/dev/null || true
+else
+  docker-compose down -v 2>/dev/null || true
+fi
 
 # Use the intelligent service startup script
 ./scripts/start-services.sh

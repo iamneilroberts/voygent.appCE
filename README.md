@@ -81,6 +81,28 @@ cp .env.example .env
 
 > The setup script will prompt you to choose between **Local**, **Remote**, or **Hybrid** MCP modes. See [MCP Configuration Guide](docs/MCP_CONFIGURATION.md) for details.
 
+### Docker Compose on Windows vs. Linux
+- The launchers now auto-detect the correct command: `docker compose` (plugin) or `docker-compose` (standalone).
+- Linux distros often only have `docker compose`. Windows Docker Desktop supports both.
+
+### Chrome MCP inside Docker
+- LibreChat runs inside a container and can’t see host paths. We mount the built `mcp-chrome` to the container and point LibreChat at the container path.
+- Defaults set in `.env`:
+  - `MCP_CHROME_PATH=./mcp-chrome/app/native-server/dist/index.js` (host)
+  - `MCP_CHROME_CONTAINER_PATH=/mcp-chrome/index.js` (container)
+- If you move `mcp-chrome`, update these and re-run `./voygent start`.
+
+### Troubleshooting MCP Tools
+
+If MCP tools don't appear in LibreChat:
+1. **Check configuration**: Ensure your `config/librechat.yaml` has a global `mcpServers` section at the top level (not just in endpoints)
+2. **Verify environment**: Ensure `ALLOW_MCP=true` is set in docker-compose.yml
+3. **Restart services**: Run `./voygent restart` to apply changes
+4. **Select correct endpoint**: In LibreChat, choose "Voygent Anthropic" or "Voygent OpenAI" (not the default Anthropic/OpenAI)
+5. **Check logs**: Run `./voygent logs` and look for "MCP servers initialized successfully"
+
+> See [MCP Troubleshooting Guide](docs/MCP_TROUBLESHOOTING.md) for detailed debugging steps.
+
 ## VoygentCE Launcher Commands
 
 After setup, use the simple `voygent` command to manage your installation:
@@ -113,6 +135,80 @@ After setup, use the simple `voygent` command to manage your installation:
 ```
 
 **Windows users**: Use `voygent.bat` instead of `./voygent`
+
+### Optional: Autostart + Shortcuts
+
+- Linux (systemd user + XDG desktop entry):
+  ```bash
+  # Install autostart (user service + .desktop fallback)
+  scripts/linux/install-autostart.sh
+  ```
+  This creates `~/.config/systemd/user/voygent.service` and enables it. If it fails to start on boot, enable user lingering:
+  ```bash
+  sudo loginctl enable-linger $USER
+  systemctl --user enable --now voygent.service
+  ```
+
+- Windows (Start Menu shortcut and optional autostart at logon):
+  ```powershell
+  # From PowerShell
+  scripts\windows\install-start-menu-shortcut.ps1           # Shortcut only
+  scripts\windows\install-start-menu-shortcut.ps1 -Autostart # + autostart at logon
+  ```
+  The shortcut launches `voygent.bat start`, which auto-starts Docker Desktop if needed.
+
+### System Tray (optional)
+
+We provide a simple cross‑platform tray controller (Electron) to start/stop and see health at a glance.
+
+```bash
+# One‑time setup for development
+cd tray && pnpm install
+
+# Run the tray in dev
+pnpm --dir tray dev
+```
+
+- Menu items: Open UI, Start, Stop, Restart, Health Check.
+- Health indicator: title and tooltip show 🟢 (healthy), 🟡 (degraded), 🔴 (stopped).
+
+Linux note: During development, the tray disables Chromium sandbox on Linux to avoid the setuid helper requirement. To enable the sandbox, fix permissions on Electron's `chrome-sandbox` and set `VOYGENT_TRAY_ENABLE_SANDBOX=1` (or `ELECTRON_ENABLE_SANDBOX=1`) before running:
+
+```bash
+sudo chown root:root tray/node_modules/.pnpm/electron*/node_modules/electron/dist/chrome-sandbox
+sudo chmod 4755 tray/node_modules/.pnpm/electron*/node_modules/electron/dist/chrome-sandbox
+VOYGENT_TRAY_ENABLE_SANDBOX=1 pnpm --dir tray dev
+```
+
+Autostart the tray at login:
+
+- Linux:
+  ```bash
+  scripts/linux/install-tray-autostart.sh
+  # Ensure you ran 'pnpm install' inside ./tray first
+  ```
+
+- Windows:
+  ```powershell
+  scripts\windows\install-tray-autostart.ps1           # Logon task
+  scripts\windows\install-tray-autostart.ps1 -StartMenu # + Start Menu shortcut
+  ```
+
+### Packaging the Tray
+
+Create platform installers with electron‑builder:
+
+```bash
+# Linux (AppImage, deb, rpm)
+pnpm --dir tray dist
+
+# Windows (NSIS .exe)
+powershell -c "cd tray; pnpm dist"
+```
+
+Notes:
+- The packaged tray will ask for your Voygent repo path on first run if it can’t autodetect it. You can also set env `VOYGENT_ROOT`.
+- Linux dev runs disable Chromium sandbox by default; packaged apps keep default sandboxing.
 
 **Services**
 

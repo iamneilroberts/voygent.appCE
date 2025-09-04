@@ -4,9 +4,25 @@
 version: 1.1.0
 cache: true
 
+# REQUIRED: Global MCP server definitions for initialization
+# These must be defined at the top level for MCPManager to initialize properly
+mcpServers:
+{{#if_database_remote}}
+  d1_database:
+    type: "streamable-http"
+    url: "${MCP_D1_DATABASE_SSE_URL}"
+    description: "Advanced trip and hotel data management (Remote Mode)"
+{{/if_database_remote}}
+{{#if_instructions_remote}}
+  prompt_instructions:
+    type: "streamable-http"
+    url: "${MCP_PROMPT_INSTRUCTIONS_SSE_URL}"
+    description: "Workflow and conversation management (Remote Mode)"
+{{/if_instructions_remote}}
+
 endpoints:
   custom:
-    - name: "Anthropic"
+    - name: "Voygent Anthropic"
       apiKey: "${ANTHROPIC_API_KEY}"
       baseURL: "https://api.anthropic.com/v1"
       models:
@@ -72,7 +88,7 @@ endpoints:
             - continue_trip: Resume work on existing trips with full context
             - get_instruction: Retrieve workflow-specific guidance
 {{/if_instructions_remote}}
-    - name: "OpenAI"
+    - name: "Voygent OpenAI"
       apiKey: "${OPENAI_API_KEY}"
       baseURL: "https://api.openai.com/v1"
       models:

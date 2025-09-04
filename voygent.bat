@@ -60,17 +60,39 @@ goto :eof
 
 :check_docker
 docker info >nul 2>&1
-if %errorlevel% neq 0 (
-    echo %RED%❌ Docker is not running. Please start Docker Desktop first.%NC%
+if %errorlevel% equ 0 goto :eof
+
+echo %YELLOW%⚠️  Docker is not running. Attempting to start Docker Desktop...%NC%
+
+REM Try common install path for Docker Desktop
+set "DD_EXE=C:\Program Files\Docker\Docker\Docker Desktop.exe"
+if exist "%DD_EXE%" (
+    start "" "%DD_EXE%"
+) else (
+    echo %YELLOW%⚠️  Could not locate Docker Desktop at the default path.%NC%
+)
+
+REM Wait up to ~120s for Docker to become ready
+set /a _tries=0
+:_wait_docker
+set /a _tries+=1
+docker info >nul 2>&1 && goto :eof
+if %_tries% GEQ 120 (
+    echo %RED%❌ Docker did not become ready in time. Please launch Docker Desktop manually and retry.%NC%
     exit /b 1
 )
-goto :eof
+timeout /t 1 >nul
+goto :_wait_docker
+
+REM resolve docker compose command
+for /f "tokens=*" %%i in ('docker compose version 2^>nul') do set "DC=docker compose"
+if not defined DC set "DC=docker-compose"
 
 :check_health
 echo %BLUE%ℹ️  Checking VoygentCE service health...%NC%
 
 REM Check if containers are running
-docker-compose ps | findstr "Up" >nul
+%DC% ps | findstr "Up" >nul
 if %errorlevel% neq 0 (
     echo %YELLOW%⚠️  Services are not running. Use '%0 start' to start them.%NC%
     goto :eof
@@ -109,7 +131,7 @@ REM Start services
 if exist "scripts\start-services.sh" (
     bash scripts/start-services.sh
 ) else (
-    docker-compose up -d
+    %DC% up -d
     echo %BLUE%ℹ️  Waiting for services to start...%NC%
     timeout /t 10 >nul
 )
@@ -128,13 +150,13 @@ goto :eof
 
 :stop_services
 echo %BLUE%ℹ️  Stopping VoygentCE services...%NC%
-docker-compose down
+%DC% down
 echo %GREEN%✅ VoygentCE services stopped%NC%
 goto :eof
 
 :restart_services
 echo %BLUE%ℹ️  Restarting VoygentCE services...%NC%
-docker-compose restart
+%DC% restart
 echo %GREEN%✅ VoygentCE services restarted%NC%
 
 echo %BLUE%ℹ️  Waiting for services to be ready...%NC%
@@ -145,7 +167,7 @@ goto :eof
 :show_status
 echo %BLUE%ℹ️  VoygentCE service status:%NC%
 echo.
-docker-compose ps
+%DC% ps
 echo.
 
 echo %BLUE%ℹ️  Service endpoints:%NC%
@@ -161,10 +183,10 @@ goto :eof
 :show_logs
 if "%2"=="" (
     echo %BLUE%ℹ️  Showing logs for all services (Ctrl+C to exit)...%NC%
-    docker-compose logs -f
+    %DC% logs -f
 ) else (
     echo %BLUE%ℹ️  Showing logs for %2...%NC%
-    docker-compose logs -f %2
+    %DC% logs -f %2
 )
 goto :eof
 
@@ -177,10 +199,10 @@ goto :eof
 echo %BLUE%ℹ️  Updating VoygentCE services...%NC%
 
 REM Pull latest images
-docker-compose pull
+%DC% pull
 
 REM Rebuild if needed
-docker-compose build
+%DC% build
 
 REM Restart services
 call :restart_services

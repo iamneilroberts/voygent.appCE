@@ -1,0 +1,52 @@
+{
+  "name": "voygent-tray",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Voygent CE system tray controller",
+  "main": "main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "electron .",
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^29.4.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.voygent.ce.tray",
+    "productName": "Voygent CE Tray",
+    "asar": true,
+    "files": [
+      "main.js",
+      "package.json"
+    ],
+    "directories": {
+      "buildResources": "build"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb",
+        "rpm"
+      ],
+      "category": "Utility"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": false
+    }
+  }
+}
